@@ -18,6 +18,9 @@ setup(
     license='BSD 3-clause',
     tests_require=['pytest'],
     entry_points={
-        'console_scripts': ['visualize_pedestrians = social_nav_util.visualize_pedestrians:main']
+        'console_scripts': [
+            'visualize_pedestrians = social_nav_util.visualize_pedestrians:main',
+            'plot_velocity_from_bag = social_nav_util.plot_velocity_from_bag:main',
+        ]
     },
 )
