@@ -21,7 +21,7 @@ class VisualizePedestrians(Node):
     def __init__(self):
         super().__init__('visualize_pedestrians')
         self.pub = self.create_publisher(MarkerArray, '/markers', 1)
-        self.subscription = self.create_subscription(Pedestrians, '/top/zed/body_trk/pedestrians', self.ped_cb, 1)
+        self.subscription = self.create_subscription(Pedestrians, '/pedestrians', self.ped_cb, 1)
 
     def ped_cb(self, msg):
         ma = MarkerArray()
