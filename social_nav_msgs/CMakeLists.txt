@@ -23,7 +23,9 @@ find_package(std_msgs REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
     msg/Pedestrian.msg
+    msg/PedestrianWithCovariance.msg
     msg/Pedestrians.msg
+    msg/PedestriansWithCovariance.msg
   DEPENDENCIES
     geometry_msgs
     nav_2d_msgs
