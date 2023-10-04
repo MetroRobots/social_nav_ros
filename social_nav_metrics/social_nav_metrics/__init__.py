@@ -5,6 +5,7 @@ from navigation_metrics.util import pose2d_distance, min_max_total_avg, metric_m
 from std_msgs.msg import Float64, Int32
 from social_nav_msgs.msg import Pedestrians, PolarPedestrian, PolarPedestrians
 from math import pi
+import math
 
 
 @flexible_bag_converter_function('/pedestrians')
@@ -96,6 +97,16 @@ def calculate_pedestrian_count(data):
 
 
 @nav_metric
+def pedestrian_counts(data):
+    d = {}
+    the_min, the_max, _, avg = min_max_total_avg(data['/pedestrian_count'])
+    d[f'min_pedestrian_count'] = the_min
+    d[f'max_pedestrian_count'] = the_max
+    d[f'avg_pedestrian_count'] = avg
+    return d
+
+
+@nav_metric
 def pedestrian_density(data):
     general_density_radius = data.get_parameter('general_density_radius', 10.0)
     fov_density_radius = data.get_parameter('fov_density_radius', 3.0)
@@ -111,4 +122,27 @@ def pedestrian_density(data):
         d[f'min_{prefix}pedestrian_density'] = the_min / denominator
         d[f'max_{prefix}pedestrian_density'] = the_max / denominator
         d[f'avg_{prefix}pedestrian_density'] = avg / denominator
+    return d
+
+
+@flexible_bag_converter_function('/reciprocal_people_distance')
+def reciprocal_people_distance(data):
+    seq = []
+    exp = data.get_parameter('reciprocal_people_distance_exponent', 2)
+    for t, msg in data['/polar_pedestrians']:
+        total = 0.0
+        for pedestrian in msg.pedestrians:
+            total += math.pow(pedestrian.distance, -exp)
+        fmsg = Float64()
+        fmsg.data = total
+        seq.append(BagMessage(t, fmsg))
+    return seq
+
+@nav_metric
+def rpd_metric(data):
+    d = {}
+    the_min, the_max, _, avg = min_max_total_avg(data['/reciprocal_people_distance'])
+    d[f'min_rpd'] = the_min
+    d[f'max_rpd'] = the_max
+    d[f'avg_rpd'] = avg
     return d
