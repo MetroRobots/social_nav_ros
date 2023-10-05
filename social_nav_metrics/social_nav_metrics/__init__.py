@@ -87,11 +87,23 @@ def calculate_fov_count(data):
 
 @flexible_bag_converter_function('/pedestrian_count')
 def calculate_pedestrian_count(data):
-    density_radius = data.get_parameter('general_density_radius', 10.0)
     seq = []
     for t, msg in data['/polar_pedestrians']:
         fmsg = Int32()
-        fmsg.data = calculate_density(msg, density_radius, 2 * pi)
+        fmsg.data = len(msg.pedestrians)
+        seq.append(BagMessage(t, fmsg))
+    return seq
+
+
+@flexible_bag_converter_function('/close_pedestrian_count')
+def calculate_close_pedestrian_count(data):
+    close_pedestrian_radius = data.get_parameter('close_pedestrian_radius', 2.0)
+    seq = []
+    for t, msg in data['/polar_pedestrians']:
+        fmsg = Int32()
+        for ped in msg.pedestrians:
+            if ped.distance <= close_pedestrian_radius:
+                fmsg.data += 1
         seq.append(BagMessage(t, fmsg))
     return seq
 
@@ -105,6 +117,16 @@ def pedestrian_counts(data):
     d[f'avg_pedestrian_count'] = avg
     return d
 
+
+
+@nav_metric
+def close_pedestrian_counts(data):
+    d = {}
+    the_min, the_max, _, avg = min_max_total_avg(data['/close_pedestrian_count'])
+    d[f'min_close_pedestrian_count'] = the_min
+    d[f'max_close_pedestrian_count'] = the_max
+    d[f'avg_close_pedestrian_count'] = avg
+    return d
 
 @nav_metric
 def pedestrian_density(data):
