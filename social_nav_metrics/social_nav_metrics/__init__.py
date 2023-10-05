@@ -1,6 +1,6 @@
 from navigation_metrics.metric import nav_metric
 from navigation_metrics.flexible_bag import flexible_bag_converter_function, BagMessage
-from navigation_metrics.util import pose2d_distance, min_max_total_avg, metric_min
+from navigation_metrics.util import pose2d_distance, min_max_total_avg, metric_min, min_max_avg_d
 
 from std_msgs.msg import Float64, Int32
 from social_nav_msgs.msg import Pedestrians, PolarPedestrian, PolarPedestrians
@@ -110,23 +110,13 @@ def calculate_close_pedestrian_count(data):
 
 @nav_metric
 def pedestrian_counts(data):
-    d = {}
-    the_min, the_max, _, avg = min_max_total_avg(data['/pedestrian_count'])
-    d[f'min_pedestrian_count'] = the_min
-    d[f'max_pedestrian_count'] = the_max
-    d[f'avg_pedestrian_count'] = avg
-    return d
-
+    return min_max_avg_d(data['/pedestrian_count'])
 
 
 @nav_metric
 def close_pedestrian_counts(data):
-    d = {}
-    the_min, the_max, _, avg = min_max_total_avg(data['/close_pedestrian_count'])
-    d[f'min_close_pedestrian_count'] = the_min
-    d[f'max_close_pedestrian_count'] = the_max
-    d[f'avg_close_pedestrian_count'] = avg
-    return d
+    return min_max_avg_d(data['/close_pedestrian_count'])
+
 
 @nav_metric
 def pedestrian_density(data):
@@ -137,18 +127,22 @@ def pedestrian_density(data):
     general_area = pi * general_density_radius * general_density_radius
     fov_area = (fov_density_angle / 2) * fov_density_radius * fov_density_radius
 
-    d = {}
+    metrics = {}
     for prefix, topic, denominator in [('', '/pedestrian_count', general_area),
-                                       ('fov_', '/fov_count', fov_area)]:
+                                       ('fov', '/fov_count', fov_area)]:
         the_min, the_max, _, avg = min_max_total_avg(data[topic])
-        d[f'min_{prefix}pedestrian_density'] = the_min / denominator
-        d[f'max_{prefix}pedestrian_density'] = the_max / denominator
-        d[f'avg_{prefix}pedestrian_density'] = avg / denominator
-    return d
+        d = min_max_avg_d(data[topic])
+        for k, v in d.items():
+            if prefix:
+                key = f'{prefix}/{k}'
+            else:
+                key = k
+            metrics[key] = v
+    return metrics
 
 
 @flexible_bag_converter_function('/reciprocal_people_distance')
-def reciprocal_people_distance(data):
+def calculate_reciprocal_people_distance(data):
     seq = []
     exp = data.get_parameter('reciprocal_people_distance_exponent', 2)
     for t, msg in data['/polar_pedestrians']:
@@ -160,11 +154,7 @@ def reciprocal_people_distance(data):
         seq.append(BagMessage(t, fmsg))
     return seq
 
+
 @nav_metric
-def rpd_metric(data):
-    d = {}
-    the_min, the_max, _, avg = min_max_total_avg(data['/reciprocal_people_distance'])
-    d[f'min_rpd'] = the_min
-    d[f'max_rpd'] = the_max
-    d[f'avg_rpd'] = avg
-    return d
+def reciprocal_people_distance(data):
+    return min_max_avg_d(data['/reciprocal_people_distance'])
