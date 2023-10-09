@@ -36,6 +36,8 @@ def convert_to_polar(data):
 
         for pedestrian in ped_rmsg.msg.pedestrians:
             d, angle = pose2d_distance(path_rmsg.msg.pose, pedestrian.pose)
+            if math.isnan(d):
+                continue
             pmsg = PolarPedestrian()
             pmsg.identifier = pedestrian.identifier
             pmsg.angle = angle
@@ -139,6 +141,25 @@ def pedestrian_density(data):
                 key = k
             metrics[key] = v
     return metrics
+
+
+@nav_metric
+def average_safety_distance(data):
+    close_pedestrian_radius = data.get_parameter('close_pedestrian_radius', 2.0)
+    min_distances = {}
+    for t, msg in data['/polar_pedestrians']:
+        for ped in msg.pedestrians:
+            if math.isnan(ped.distance) or ped.distance > close_pedestrian_radius:
+                continue
+            key = ped.identifier
+            if key not in min_distances or min_distances[key] > ped.distance:
+                min_distances[key] = ped.distance
+
+    if not min_distances:
+        return
+
+    V = min_distances.values()
+    return sum(V) / len(V)
 
 
 @flexible_bag_converter_function('/reciprocal_people_distance')
