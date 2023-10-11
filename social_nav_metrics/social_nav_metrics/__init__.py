@@ -1,6 +1,6 @@
 from navigation_metrics.metric import nav_metric
 from navigation_metrics.flexible_bag import flexible_bag_converter_function, BagMessage
-from navigation_metrics.util import pose2d_distance, min_max_total_avg, metric_min, min_max_avg_d, standard_deviation
+from navigation_metrics.util import pose2d_distance, min_max_avg_dev_d, metric_min, min_max_avg_d
 
 from std_msgs.msg import Float64, Int32
 from social_nav_msgs.msg import Pedestrians, PolarPedestrian, PolarPedestrians
@@ -117,9 +117,7 @@ def pedestrian_counts(data):
 
 @nav_metric
 def close_pedestrian_counts(data):
-    d = min_max_avg_d(data['/close_pedestrian_count'])
-    d['stddev'] = standard_deviation(data['/close_pedestrian_count'])
-    return d
+    return min_max_avg_dev_d(data['/close_pedestrian_count'])
 
 
 @nav_metric
@@ -156,7 +154,7 @@ def pedestrian_density(data):
     metrics = {}
     for prefix, topic, denominator in [('', '/pedestrian_count', general_area),
                                        ('fov', '/fov_count', fov_area)]:
-        d = min_max_avg_d(data[topic])
+        d = min_max_avg_dev_d(data[topic])
         for k, v in d.items():
             if prefix:
                 key = f'{prefix}/{k}'
