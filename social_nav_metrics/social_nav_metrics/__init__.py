@@ -8,7 +8,7 @@ from math import pi
 import math
 
 
-@flexible_bag_converter_function('/pedestrians')
+@flexible_bag_converter_function('/pedestrians', 'social_nav_msgs.msg.Pedestrians')
 def convert_pedestrians(data):
     seq = []
     covar_topics = data.get_topics_by_type('social_nav_msgs/msg/PedestriansWithCovariance')
@@ -25,7 +25,7 @@ def convert_pedestrians(data):
     return seq
 
 
-@flexible_bag_converter_function('/polar_pedestrians')
+@flexible_bag_converter_function('/polar_pedestrians', 'social_nav_msgs.msg.PolarPedestrians')
 def convert_to_polar(data):
     robot_frame = data.get_parameter('robot_frame', 'base_link')
     seq = []
@@ -156,14 +156,13 @@ def pedestrian_density(data):
     metrics = {}
     for prefix, topic, denominator in [('', '/pedestrian_count', general_area),
                                        ('fov', '/fov_count', fov_area)]:
-        the_min, the_max, _, avg = min_max_total_avg(data[topic])
         d = min_max_avg_d(data[topic])
         for k, v in d.items():
             if prefix:
                 key = f'{prefix}/{k}'
             else:
                 key = k
-            metrics[key] = v
+            metrics[key] = v / denominator
     return metrics
 
 
