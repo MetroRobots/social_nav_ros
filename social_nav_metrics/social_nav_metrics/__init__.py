@@ -121,6 +121,28 @@ def close_pedestrian_counts(data):
 
 
 @nav_metric
+def max_sustained_pedestrian_count(data):
+    sustain_period = data.get_parameter('sustain_period', 2.0)
+    start_times = {}
+    max_count = 0
+    prev_t = None
+    for t, msg in data.bag['/close_pedestrian_count']:
+        count = msg.data
+        if count not in start_times:
+            start_times[count] = t
+        else:
+            for completed_count in sorted(start_times.keys()):
+                if completed_count <= count:
+                    continue
+                start_t = start_times.pop(completed_count)
+                delta = prev_t - start_t
+                if delta > sustain_period and completed_count > max_count:
+                    max_count = completed_count
+        prev_t = t
+    return max_count
+
+
+@nav_metric
 def pedestrian_density(data):
     general_density_radius = data.get_parameter('general_density_radius', 10.0)
     fov_density_radius = data.get_parameter('fov_density_radius', 3.0)
