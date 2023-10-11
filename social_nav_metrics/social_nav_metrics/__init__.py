@@ -1,6 +1,6 @@
 from navigation_metrics.metric import nav_metric
 from navigation_metrics.flexible_bag import flexible_bag_converter_function, BagMessage
-from navigation_metrics.util import pose2d_distance, min_max_total_avg, metric_min, min_max_avg_d
+from navigation_metrics.util import pose2d_distance, min_max_total_avg, metric_min, min_max_avg_d, standard_deviation
 
 from std_msgs.msg import Float64, Int32
 from social_nav_msgs.msg import Pedestrians, PolarPedestrian, PolarPedestrians
@@ -117,7 +117,9 @@ def pedestrian_counts(data):
 
 @nav_metric
 def close_pedestrian_counts(data):
-    return min_max_avg_d(data['/close_pedestrian_count'])
+    d = min_max_avg_d(data['/close_pedestrian_count'])
+    d['stddev'] = standard_deviation(data['/close_pedestrian_count'])
+    return d
 
 
 @nav_metric
