@@ -129,7 +129,7 @@ def max_sustained_pedestrian(data):
     start_times = {}
     max_count = 0
     prev_t = None
-    for t, msg in data.bag['/close_pedestrian_count']:
+    for t, msg in data['/close_pedestrian_count']:
         count = msg.data
         if count not in start_times:
             start_times[count] = t
