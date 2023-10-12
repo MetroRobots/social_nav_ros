@@ -6,6 +6,7 @@ from std_msgs.msg import Float64, Int32
 from social_nav_msgs.msg import Pedestrians, PolarPedestrian, PolarPedestrians
 from math import pi
 import math
+import collections
 
 
 @flexible_bag_converter_function('/pedestrians', 'social_nav_msgs.msg.Pedestrians')
@@ -122,12 +123,12 @@ def close_pedestrian_counts(data):
 
 @nav_metric
 def max_sustained_pedestrian(data):
-    sustain_period = data.get_parameter('sustain_period', 2.0)
+    sustain_periods = [1, 2, 4, 5, 8, 10]
     fov_density_angle = data.get_parameter('fov_density_angle', pi / 4.0)
     close_pedestrian_radius = data.get_parameter('close_pedestrian_radius', 2.0)
     fov_area = (fov_density_angle / 2) * close_pedestrian_radius * close_pedestrian_radius
     start_times = {}
-    max_count = 0
+    max_counts = collections.defaultdict(int)
     prev_t = None
     for t, msg in data.bag['/close_pedestrian_count']:
         count = msg.data
@@ -139,10 +140,16 @@ def max_sustained_pedestrian(data):
                     continue
                 start_t = start_times.pop(completed_count)
                 delta = prev_t - start_t
-                if delta > sustain_period and completed_count > max_count:
-                    max_count = completed_count
+                for sustain_period in sustain_periods:
+                    if delta > sustain_period and completed_count > max_counts[sustain_period]:
+                        max_counts[sustain_period] = completed_count
         prev_t = t
-    return {'count': max_count, 'density': max_count / fov_area}
+
+    metrics = {}
+    for sustain_period in sustain_periods:
+        metrics[f'{sustain_period}/count'] = max_counts[sustain_period]
+        metrics[f'{sustain_period}/density'] = max_counts[sustain_period] / fov_area
+    return metrics
 
 
 @nav_metric
