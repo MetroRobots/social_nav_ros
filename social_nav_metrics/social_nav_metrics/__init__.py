@@ -121,8 +121,11 @@ def close_pedestrian_counts(data):
 
 
 @nav_metric
-def max_sustained_pedestrian_count(data):
+def max_sustained_pedestrian(data):
     sustain_period = data.get_parameter('sustain_period', 2.0)
+    fov_density_angle = data.get_parameter('fov_density_angle', pi / 4.0)
+    close_pedestrian_radius = data.get_parameter('close_pedestrian_radius', 2.0)
+    fov_area = (fov_density_angle / 2) * close_pedestrian_radius * close_pedestrian_radius
     start_times = {}
     max_count = 0
     prev_t = None
@@ -139,7 +142,7 @@ def max_sustained_pedestrian_count(data):
                 if delta > sustain_period and completed_count > max_count:
                     max_count = completed_count
         prev_t = t
-    return max_count
+    return {'count': max_count, 'density': max_count / fov_area}
 
 
 @nav_metric
