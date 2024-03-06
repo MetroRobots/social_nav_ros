@@ -1,4 +1,4 @@
-from navigation_metrics.metric import nav_metric
+from navigation_metrics.metric import nav_metric, nav_metric_set
 from navigation_metrics.flexible_bag import flexible_bag_converter_function, BagMessage
 from navigation_metrics.util import pose2d_distance, min_max_avg_dev_d, metric_min, min_max_avg_d
 
@@ -6,7 +6,6 @@ from std_msgs.msg import Float64, Int32
 from social_nav_msgs.msg import Pedestrians, PolarPedestrian, PolarPedestrians
 from math import pi
 import math
-import collections
 
 
 @flexible_bag_converter_function('/pedestrians', 'social_nav_msgs.msg.Pedestrians')
@@ -65,6 +64,11 @@ def get_closest_person_distance(data):
 
 @nav_metric
 def min_distance_to_person(data):
+    """
+    The minimum distance to any person over the trial.
+
+    Units: meters
+    """
     return metric_min(data['/closest_person_distance'])
 
 
@@ -98,9 +102,7 @@ def calculate_pedestrian_count(data):
     return seq
 
 
-@flexible_bag_converter_function('/close_pedestrian_count')
-def calculate_close_pedestrian_count(data):
-    close_pedestrian_radius = data.get_parameter('close_pedestrian_radius', 2.0)
+def calculate_close_pedestrian_count(data, close_pedestrian_radius):
     seq = []
     for t, msg in data['/polar_pedestrians']:
         fmsg = Int32()
@@ -111,26 +113,42 @@ def calculate_close_pedestrian_count(data):
     return seq
 
 
-@nav_metric
+@nav_metric_set(['min', 'max', 'avg'])
 def pedestrian_counts(data):
+    """
+    The minimum/maximum/average number of pedestrians detected
+
+    Units: Count
+    """
     return min_max_avg_d(data['/pedestrian_count'])
 
 
-@nav_metric
-def close_pedestrian_counts(data):
-    return min_max_avg_dev_d(data['/close_pedestrian_count'])
+@nav_metric_set(['min', 'max', 'avg', 'stddev'])
+def close_pedestrian_counts(data, close_pedestrian_radius=2.0):
+    """
+    The minimum/maximum/average and standard deviation of the number of pedestrians within the close_pedestrian_radius
+
+    Units: Count
+    """
+
+    return min_max_avg_dev_d(calculate_close_pedestrian_count(data, close_pedestrian_radius))
 
 
-@nav_metric
-def max_sustained_pedestrian(data):
-    sustain_periods = [1, 2, 4, 5, 8, 10]
+@nav_metric_set(['count', 'density'])
+def max_sustained_pedestrian(data, sustain_period=4.0, close_pedestrian_radius=2.0):
+    """
+    The greatest number of people sustained for at least the sustain_period
+
+    The value is expressed both as an absolute count and as a density, i.e. the ratio of the count to the F.O.V. area
+
+    Units: Count, Count / meter^2
+    """
     fov_density_angle = data.get_parameter('fov_density_angle', pi / 4.0)
-    close_pedestrian_radius = data.get_parameter('close_pedestrian_radius', 2.0)
     fov_area = (fov_density_angle / 2) * close_pedestrian_radius * close_pedestrian_radius
     start_times = {}
-    max_counts = collections.defaultdict(int)
+    max_count = 0
     prev_t = None
-    for t, msg in data['/close_pedestrian_count']:
+    for t, msg in calculate_close_pedestrian_count(data, close_pedestrian_radius):
         count = msg.data
         if count not in start_times:
             start_times[count] = t
@@ -140,20 +158,25 @@ def max_sustained_pedestrian(data):
                     continue
                 start_t = start_times.pop(completed_count)
                 delta = prev_t - start_t
-                for sustain_period in sustain_periods:
-                    if delta > sustain_period and completed_count > max_counts[sustain_period]:
-                        max_counts[sustain_period] = completed_count
+                if delta > sustain_period and completed_count > max_count:
+                    max_count = completed_count
         prev_t = t
 
     metrics = {}
-    for sustain_period in sustain_periods:
-        metrics[f'{sustain_period}/count'] = max_counts[sustain_period]
-        metrics[f'{sustain_period}/density'] = max_counts[sustain_period] / fov_area
+    metrics['count'] = max_count
+    metrics['density'] = max_count / fov_area
     return metrics
 
 
-@nav_metric
+@nav_metric_set(['min', 'max', 'avg', 'stddev'])
 def pedestrian_density(data):
+    """
+    The minimum and maximum, and average and standard deviation of the number of pedestrians detected.
+
+    Split into the full count and that just in the field of view.
+
+    Units: Count / meter^2
+    """
     general_density_radius = data.get_parameter('general_density_radius', 10.0)
     fov_density_radius = data.get_parameter('fov_density_radius', 3.0)
     fov_density_angle = data.get_parameter('fov_density_angle', pi / 4.0)
@@ -175,8 +198,7 @@ def pedestrian_density(data):
 
 
 @nav_metric
-def average_safety_distance(data):
-    close_pedestrian_radius = data.get_parameter('close_pedestrian_radius', 2.0)
+def average_safety_distance(data, close_pedestrian_radius=2.0):
     min_distances = {}
     for t, msg in data['/polar_pedestrians']:
         for ped in msg.pedestrians:
@@ -193,20 +215,15 @@ def average_safety_distance(data):
     return sum(V) / len(V)
 
 
-@flexible_bag_converter_function('/reciprocal_people_distance')
-def calculate_reciprocal_people_distance(data):
+@nav_metric
+def reciprocal_people_distance(data, reciprocal_people_distance_exponent=2):
     seq = []
-    exp = data.get_parameter('reciprocal_people_distance_exponent', 2)
     for t, msg in data['/polar_pedestrians']:
         total = 0.0
         for pedestrian in msg.pedestrians:
-            total += math.pow(pedestrian.distance, -exp)
+            total += math.pow(pedestrian.distance, -reciprocal_people_distance_exponent)
         fmsg = Float64()
         fmsg.data = total
         seq.append(BagMessage(t, fmsg))
-    return seq
 
-
-@nav_metric
-def reciprocal_people_distance(data):
-    return min_max_avg_d(data['/reciprocal_people_distance'])
+    return min_max_avg_d(seq)
